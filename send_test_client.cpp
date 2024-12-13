@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
 
   int sockfd = open_socket(address, port);
   if (sockfd < 0) {
-    log << "open socker error" << std::endl;
+    log << "open socket error" << std::endl;
     exit(errno);
   }
   signal(SIGPIPE, [](int sig) { log << "SIGPIPE! " << sig << std::endl; });
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
   ssize_t errc;
 
   while (true) {
-    std::cout << "c[r|w] / x / s {str} / r {n} / ?" << std::endl;
+    std::cout << "c / x / s / r / ?" << std::endl;
     std::cin >> input;
     if (input[0] == '?') {
       std::cout << "\tc = close read & write\n"
