@@ -93,6 +93,7 @@ int main(int argc, char *argv[]) {
   while (true) {
     std::cout << "> ";
     std::cin >> input;
+
     if (input[0] == '?') {
       std::cout << "\tc = close read & write\n"
                 << "\tcr = close read\n"
@@ -110,6 +111,7 @@ int main(int argc, char *argv[]) {
     if (input[0] == 'x') {
       break;
     }
+
     if (input[0] == 'c') {
       if (input == "c") {
         shutdown(sockfd, SHUT_RDWR);
@@ -154,6 +156,7 @@ int main(int argc, char *argv[]) {
 
       input.clear();
       input.shrink_to_fit();
+
     } else if (input[0] == 'r') {
       int mode = 0;
       if (input == "rn") {
