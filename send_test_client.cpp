@@ -58,18 +58,20 @@ int main(int argc, char *argv[]) {
   char *recvbuf;
   ssize_t errc;
 
+  std::cout << "type ? for help" << std::endl;
   while (true) {
-    std::cout << "c / x / s / r / ?" << std::endl;
+    std::cout << "> ";
     std::cin >> input;
     if (input[0] == '?') {
       std::cout << "\tc = close read & write\n"
                 << "\tcr = close read\n"
                 << "\tcw = close write\n"
                 << "\tx = close & exit\n"
-                << "\ts [n] {str} = send string {str} nonblocking\n"
-                << "\ts [b] {n} = send big string with size n\n"
-                << "\tr {n} = receive n bytes\n"
-                << "\tr [n] {n} = receive n bytes nonblocking\n"
+                << "\tsn {str} = send string {str} nonblocking\n"
+                << "\tsb {n} = send big string with size {n}\n"
+                << "\tsnb {n} = send big string with size {n} nonblocking\n"
+                << "\tr {n} = receive {n} bytes\n"
+                << "\trn {n} = receive {n} bytes nonblocking\n"
                 << std::endl;
       continue;
     }
@@ -77,11 +79,11 @@ int main(int argc, char *argv[]) {
       break;
     }
     if (input[0] == 'c') {
-      if (input.size() == 1) {
+      if (input == "c") {
         shutdown(sockfd, SHUT_RDWR);
-      } else if (input[1] == 'r') {
+      } else if (input == "cr") {
         shutdown(sockfd, SHUT_RD);
-      } else if (input[1] == 'w') {
+      } else if (input == "cw") {
         shutdown(sockfd, SHUT_WR);
       }
       log << "close socket" << std::endl;
@@ -89,14 +91,19 @@ int main(int argc, char *argv[]) {
     }
 
     if (input[0] == 's') {
-      std::cin >> input;
       int mode = 0;
-      if (input[0] == 'a') {
+      if (input == "sn") {
         mode = MSG_DONTWAIT;
         std::cin >> input;
-      } else if (input[0] == 'b') {
+      } else if (input == "sb") {
         std::cin >> input;
         input.resize(std::stoi(input));
+      } else if (input == "snb") {
+        mode = MSG_DONTWAIT;
+        std::cin >> input;
+        input.resize(std::stoi(input));
+      } else {
+        std::cin >> input;
       }
 
       log << "send..." << std::endl;
@@ -110,17 +117,19 @@ int main(int argc, char *argv[]) {
         perror("error?");
       } else {
         log << "send returned " << errc << std::endl;
+        perror("error?");
       }
 
       input.clear();
       input.shrink_to_fit();
     } else if (input[0] == 'r') {
-      std::cin >> input;
       int mode = 0;
-      if (input[0] == 'n') {
+      if (input == "rn") {
         mode = MSG_DONTWAIT;
-        std::cin >> input;
       }
+
+      std::cin >> input;
+
       recvsize = std::stoi(input);
       recvbuf = new char[recvsize + 1]{};
 
