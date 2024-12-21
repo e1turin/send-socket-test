@@ -1,16 +1,40 @@
 #include <netdb.h>
-#include <netinet/in.h>
+#include <pthread.h>
 #include <sys/socket.h>
-#include <unistd.h>
 #include <cerrno>
 #include <csignal>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <ctime>
+#include <iomanip>
 #include <iostream>
 #include <memory>
+#include <ostream>
+#include <string>
 
-#define log (std::cout << __LINE__ << ": ")
+class Logger {
+  private:
+    std::ostream &stream;
+
+    void print_time() {
+        time_t t = std::time(nullptr);
+        stream << "[" << std::put_time(std::localtime(&t), "%s s") << "] ";
+    }
+  public:
+    //Maybe also take options for how to log?
+    Logger(std::ostream &stream) : stream(stream) { }
+
+    template <typename T>
+    std::ostream &operator<<(const T &thing)  {
+        print_time();
+        return stream << __LINE__ << ": " << thing;
+    }
+};
+
 
 int open_socket(std::string address, std::string port) {
+  Logger log{std::cerr};
   int sockfd = socket(AF_INET6, SOCK_STREAM, 0);
   if (sockfd < 0) {
     log << "socket error" << std::endl;
@@ -41,6 +65,7 @@ int open_socket(std::string address, std::string port) {
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
+  Logger log{std::cerr};
 
   std::string address = "localhost";
   std::string port = "3000";
@@ -51,7 +76,11 @@ int main(int argc, char *argv[]) {
     log << "open socket error" << std::endl;
     exit(errno);
   }
-  signal(SIGPIPE, [](int sig) { log << "SIGPIPE! " << sig << std::endl; });
+
+  signal(SIGPIPE, [](int sig) { 
+    Logger log{std::cerr};
+    log << "SIGPIPE! " << sig << std::endl; 
+  });
 
   int recvsize;
   char *recvbuf;
@@ -67,9 +96,10 @@ int main(int argc, char *argv[]) {
                 << "\tcr = close read\n"
                 << "\tcw = close write\n"
                 << "\tx = close & exit\n"
+                << "\ts {str} = send string {str}\n"
                 << "\tsn {str} = send string {str} nonblocking\n"
-                << "\tsb {n} = send big string with size {n}\n"
-                << "\tsnb {n} = send big string with size {n} nonblocking\n"
+                << "\tsb {n} = send string with size {n}\n"
+                << "\tsnb {n} = send string with size {n} nonblocking\n"
                 << "\tr {n} = receive {n} bytes\n"
                 << "\trn {n} = receive {n} bytes nonblocking\n"
                 << std::endl;
@@ -82,19 +112,26 @@ int main(int argc, char *argv[]) {
 
     if (input[0] == 'c') {
       if (input == "c") {
-        shutdown(sockfd, SHUT_RDWR);
+        log << "close socket read & write: "
+            << shutdown(sockfd, SHUT_RDWR) 
+            << std::endl;
       } else if (input == "cr") {
-        shutdown(sockfd, SHUT_RD);
+        log << "close socket read" 
+            << shutdown(sockfd, SHUT_RD)
+            << std::endl;
       } else if (input == "cw") {
-        shutdown(sockfd, SHUT_WR);
+        log << "close socket write" 
+            << shutdown(sockfd, SHUT_WR)
+            << std::endl;
       }
-      log << "close socket" << std::endl;
       continue;
     }
 
     if (input[0] == 's') {
       int mode = 0;
-      if (input == "sn") {
+      if (input == "s") {
+        std::cin >> input;
+      } else if (input == "sn") {
         mode = MSG_DONTWAIT;
         std::cin >> input;
       } else if (input == "sb") {

@@ -6,30 +6,54 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <ostream>
 #include <string>
 
-#define log (std::cout << __LINE__ << ": ")
+
+class Logger {
+  private:
+    std::ostream &stream;
+
+    void print_time() {
+        time_t t = std::time(nullptr);
+        stream << "[" << std::put_time(std::localtime(&t), "%s s") << "] ";
+    }
+  public:
+    //Maybe also take options for how to log?
+    Logger(std::ostream &stream) : stream(stream) { }
+
+    template <typename T>
+    std::ostream &operator<<(const T &thing)  {
+        print_time();
+        return stream << __LINE__ << ": " << thing;
+    }
+};
+
+
+// #define log (std::cout << __LINE__ << ": ")
 
 int open_socket(std::string port) {
+  Logger log{std::cerr};
   int sockfd = socket(AF_INET6, SOCK_STREAM, 0);
 
   if (sockfd < 0) {
-    std::cout << "socket error: " << strerror(errno) << std::endl;
+    log << "socket error: " << strerror(errno) << std::endl;
     return -1;
   }
 
   int optval = 1;
   if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) <
       0) {
-    std::cerr << "SO_REUSEADDR failed: " << strerror(errno) << std::endl;
+    log << "SO_REUSEADDR failed: " << strerror(errno) << std::endl;
     return -1;
   }
   if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) <
       0) {
-    std::cerr << "SO_REUSEPORT failed: " << strerror(errno) << std::endl;
+    log << "SO_REUSEPORT failed: " << strerror(errno) << std::endl;
     return -1;
   }
 
@@ -57,6 +81,7 @@ int open_socket(std::string port) {
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
+  Logger log{std::cerr};
 
   std::string input;
   std::string port = "3000";
@@ -66,7 +91,10 @@ int main(int argc, char *argv[]) {
     log << "open socker error" << std::endl;
     exit(errno);
   }
-  signal(SIGPIPE, [](int sig) { log << "SIGPIPE! " << sig << std::endl; });
+  signal(SIGPIPE, [](int sig) { 
+    Logger log{std::cerr};
+    log << "SIGPIPE! " << sig << std::endl; 
+  });
 
   if (listen(sockfd, 10) < 0) {
     log << "Listen failed: " << strerror(errno) << std::endl;
@@ -95,13 +123,17 @@ int main(int argc, char *argv[]) {
     std::cin >> input;
 
     if (input[0] == '?') {
-      std::cout << "\tc = close read & write\n"
-                << "\tcr = close read\n"
-                << "\tcw = close write\n"
-                << "\tx = close & exit\n"
+      std::cout << "\tc = close client read & write\n"
+                << "\tcr = close client read\n"
+                << "\tcw = close client write\n"
+                << "\tcs = close server read & write\n"
+                << "\tcsr = close server read\n"
+                << "\tcsw = close server write\n"
+                << "\tx = close server & exit\n"
+                << "\ts {str} = send string {str}\n"
                 << "\tsn {str} = send string {str} nonblocking\n"
-                << "\tsb {n} = send big string with size {n}\n"
-                << "\tsnb {n} = send big string with size {n} nonblocking\n"
+                << "\tsb {n} = send string with size {n}\n"
+                << "\tsnb {n} = send string with size {n} nonblocking\n"
                 << "\tr {n} = receive {n} bytes\n"
                 << "\trn {n} = receive {n} bytes nonblocking\n"
                 << std::endl;
@@ -114,19 +146,39 @@ int main(int argc, char *argv[]) {
 
     if (input[0] == 'c') {
       if (input == "c") {
-        shutdown(sockfd, SHUT_RDWR);
+        log << "close client socket read & write: "
+            << shutdown(clientsockfd, SHUT_RDWR) 
+            << std::endl;
       } else if (input == "cr") {
-        shutdown(sockfd, SHUT_RD);
+        log << "close client socket read: " 
+            << shutdown(clientsockfd, SHUT_RD)
+            << std::endl;
       } else if (input == "cw") {
-        shutdown(sockfd, SHUT_WR);
+        log << "close client socket write: " 
+            << shutdown(clientsockfd, SHUT_WR)
+            << std::endl;
+      } else if (input == "cs") {
+        log << "close server socket read & write: "
+            << shutdown(sockfd, SHUT_RDWR) 
+            << std::endl;
+      } else if (input == "csr") {
+        log << "close server socket read: " 
+            << shutdown(sockfd, SHUT_RD)
+            << std::endl;
+      } else if (input == "csw") {
+        log << "close server socket write: " 
+            << shutdown(sockfd, SHUT_WR)
+            << std::endl;
       }
-      log << "close socket" << std::endl;
       continue;
     }
 
+
     if (input[0] == 's') {
       int mode = 0;
-      if (input == "sn") {
+      if (input == "s") {
+        std::cin >> input;
+      } else if (input == "sn") {
         mode = MSG_DONTWAIT;
         std::cin >> input;
       } else if (input == "sb") {
